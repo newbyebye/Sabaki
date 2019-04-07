@@ -642,7 +642,7 @@ exports.buildMenu = function() {
                         }, ({result}) => {
                             if (!result || result.length === 0) return
 
-                            i18n.load(result[0])
+                            i18n.loadFile(result[0])
                         })
                     }
                 },
