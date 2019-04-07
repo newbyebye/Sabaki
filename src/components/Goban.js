@@ -126,7 +126,7 @@ class Goban extends Component {
         let {sign, variation} = this.props.analysis.find(x => helper.vertexEquals(x.vertex, vertex)) || {}
         if (variation == null) return
 
-        this.playVariation(sign, variation)
+        this.playVariation(sign, variation, setting.get('view.show_siblings'))
     }
 
     handleVertexMouseLeave(evt, vertex) {
