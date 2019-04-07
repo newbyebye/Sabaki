@@ -33,6 +33,7 @@ const helper = require('../modules/helper')
 const treetransformer = require('../modules/treetransformer')
 const setting = remote.require('./setting')
 const sound = require('../modules/sound')
+const ReviewEngine = require('../modules/review')
 
 class App extends Component {
     constructor() {
@@ -1318,6 +1319,8 @@ class App extends Component {
         let currents = gameCurrents[gameIndex]
 
         let n = tree.get(id)
+        let gopv = n.data["GOPV"]
+        
         while (n.parentId != null) {
             // Update currents
 
@@ -1348,8 +1351,12 @@ class App extends Component {
             treePosition: id
         })
 
-        this.recordHistory({prevGameIndex, prevTreePosition})
+        if (gopv !== undefined) {
+            let analysis = this.parseAnalysisSgf(gopv)
+            this.setState({analysis: analysis, analysisTreePosition: id})
+        }
 
+        this.recordHistory({prevGameIndex, prevTreePosition})
         this.events.emit('navigate')
     }
 
@@ -2517,6 +2524,45 @@ class App extends Component {
 
         if (removeAnalysisData) this.setState({analysisTreePosition: null, analysis: null})
     }
+    
+    parseAnalysisSgf(gopv) {
+        let analysis = gopv
+            .map(x => x.trim())
+            .map(x => {
+                let matchPV = x.match(/(pass|[A-Z][A-Z])(\s+(pass|[A-Z][A-Z]))*\s*$/)
+                if (matchPV == null)
+                    return null
+                let matchPass = matchPV[0].match(/pass/)
+                if (matchPass == null) {
+                    return [x.slice(0, matchPV.index), matchPV[0].split(/\s+/)]
+                } else {
+                    return [x.slice(0, matchPV.index), matchPV[0].slice(0, matchPass.index).split(/\s+/)]
+                }
+            })
+            .filter(x => x != null)
+            .map(([x, y]) => [
+                x.trim().split(/\s+/).slice(0, -1),
+                y.filter(x => x.length >= 2)
+            ])
+            .map(([tokens, pv]) => {
+                let keys = tokens.filter((_, i) => i % 2 === 0)
+                let values = tokens.filter((_, i) => i % 2 === 1)
+
+                keys.push('pv')
+                values.push(pv)
+
+                return keys.reduce((acc, x, i) => (acc[x] = values[i], acc), {})
+            })
+            .map(({sign, visits, winrate, pv}) => ({
+                sign: +sign,
+                vertex: sgf.parseVertex(pv[0].toLowerCase()),
+                visits: +visits,
+                win: +winrate,
+                variation: pv.map(x => sgf.parseVertex(x.toLowerCase()))
+            }))
+
+        return analysis
+    }
 
     async generateMove({passPlayer = null, firstMove = true, followUp = false} = {}) {
         this.closeDrawer()
@@ -2645,6 +2691,36 @@ class App extends Component {
 
         this.showInfoOverlay(t('Please wait…'))
         this.setState({generatingMoves: false})
+    }
+
+    async startReview({showWarning = true} = {}) {
+        let error = false
+
+        let t = i18n.context('app.engine')
+
+        gtplogger.updatePath()
+
+        let {reviewInfo} = this.state
+        if (reviewInfo != undefined && reviewInfo.engine != "") {
+            this.review = new ReviewEngine(reviewInfo.engine, this)
+            this.setState({review_analysis: []})
+            this.review.start()
+        } else {
+            error = true
+        } 
+        
+        if (showWarning && error) {
+            dialog.showMessageBox(t('You haven’t attached any engines that supports analysis.'), 'warning')
+            this.stopReview()
+        }
+    }
+
+    async stopReview() {
+        gtplogger.close()
+    }
+
+    setReviewInfo(data) {
+        this.setState({ "reviewInfo": data })
     }
 
     // Render

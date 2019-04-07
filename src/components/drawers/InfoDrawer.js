@@ -32,7 +32,7 @@ class InfoDrawer extends Component {
             let emptyTree = this.props.gameTree.root.children.length === 0
             let keys = [
                 'blackName', 'blackRank', 'whiteName', 'whiteRank',
-                'gameName', 'eventName', 'date', 'result', 'komi'
+                'gameName', 'eventName', 'date', 'result', 'komi', 'reviewName'
             ]
 
             let data = keys.reduce((acc, key) => {
@@ -48,7 +48,8 @@ class InfoDrawer extends Component {
 
             sabaki.setGameInfo(this.props.gameTree, data)
             sabaki.closeDrawer()
-            sabaki.attachEngines(...this.state.engines)
+            sabaki.attachEngines(...this.state.engines.slice(0, 2))
+            sabaki.setReviewInfo({ "engine" : this.state.engines[2] })
 
             await sabaki.waitForRender()
 
@@ -134,9 +135,9 @@ class InfoDrawer extends Component {
             return acc
         }, {})
 
-        this.handleEngineMenuClick = [0, 1].map(index => evt => {
+        this.handleEngineMenuClick = [0, 1, 2].map(index => evt => {
             let engines = setting.get('engines.list')
-            let nameKey = ['blackName', 'whiteName'][index]
+            let nameKey = ['blackName', 'whiteName', 'reviewName'][index]
             let autoName = this.state.engines[index] == null
                 ? this.state[nameKey] == null
                 : this.state[nameKey] === this.state.engines[index].name.trim()
@@ -322,7 +323,8 @@ class InfoDrawer extends Component {
         show
     }, {
         showResult = false,
-        engines = [null, null],
+        engines = [null, null, null],
+        reviewName = null,
         blackName = null,
         blackRank = null,
         whiteName = null,
@@ -506,7 +508,25 @@ class InfoDrawer extends Component {
                             disabled: !emptyTree,
                             onInput: this.handleBoardHeightChange
                         })
-                    )
+                    ),
+
+                    h(InfoDrawerItem, {title: t('Review')},
+                        h('input', {
+                            type: 'text',
+                            placeholder: t('Review'),
+                            value: reviewName,
+                            onInput: this.handleInputChange.reviewName
+                        }),
+
+                        h('img', {
+                            tabIndex: 0,
+                            src: './node_modules/octicons/build/svg/chevron-down.svg',
+                            width: 16,
+                            height: 16,
+                            class: classNames({menu: true, active: engines[2] != null}),
+                            onClick: this.handleEngineMenuClick[2]
+                        })
+                    )                   
                 ),
 
                 h('p', {},
