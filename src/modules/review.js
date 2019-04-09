@@ -89,10 +89,10 @@ class ReviewEngine {
         let tree = gameTrees[gameIndex]
         await this.attachedEngineSyncer.sync(tree, tree.root.id)
         this.app.setState({treePosition: tree.root.id})
-        await this.reviewOneStep(tree.root.children[0])
+        await this.reviewOneStep(tree.root, tree.root.children[0])
     }
 
-    async reviewOneStep(node) {
+    async reviewOneStep(parent, node) {
         let {gameTrees, gameIndex} = this.app.state
         let tree = gameTrees[gameIndex]
 
@@ -177,10 +177,11 @@ class ReviewEngine {
                         x.prior + " pv " + x.variation.map(x => sgf.stringifyVertex(x).toUpperCase()).join(" ")                 
                 })
 
+            // record black win rate
             if (sign < 0) winrate = 100 - winrate
 
             let newTree = tree.mutate(draft => {
-                draft.updateProperty(treePosition, 'SBKV', [winrate.toFixed(2)])
+                draft.updateProperty(parent.id, 'SBKV', [winrate.toFixed(2)])
                 draft.updateProperty(treePosition, 'GOPV', analysis)
             })
 
@@ -193,7 +194,7 @@ class ReviewEngine {
         }
 
         for (let child of node.children) {
-            await this.reviewOneStep(child)
+            await this.reviewOneStep(node, child)
         }
     }
 
