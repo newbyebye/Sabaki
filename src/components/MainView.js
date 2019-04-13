@@ -7,6 +7,8 @@ const GuessBar = require('./bars/GuessBar')
 const AutoplayBar = require('./bars/AutoplayBar')
 const ScoringBar = require('./bars/ScoringBar')
 const FindBar = require('./bars/FindBar')
+const WinrateGraph = require('./WinrateGraph')
+const classNames = require('classnames')
 
 const gametree = require('../modules/gametree')
 
@@ -28,8 +30,14 @@ class MainView extends Component {
             text: this.props.findText
         })
 
+        this.handleWinrateGraphChange = ({index}) => {
+            sabaki.goToMoveNumber(index)
+        }
+
         this.handleGobanVertexClick = this.handleGobanVertexClick.bind(this)
         this.handleGobanLineDraw = this.handleGobanLineDraw.bind(this)
+
+        this.componentWillReceiveProps(props)
     }
 
     componentDidMount() {
@@ -52,10 +60,15 @@ class MainView extends Component {
         })
     }
 
-    componentWillReceiveProps(nextProps) {
-        if (nextProps.mode !== 'edit') {
+    componentWillReceiveProps({gameTree, gameCurrents, gameIndex, mode} = {}) {
+        if (mode !== 'edit') {
             this.setState({gobanCrosshair: false})
         }
+
+        let currentTrack = [...gameTree.listCurrentNodes(gameCurrents[gameIndex])]
+        let winrateData = currentTrack.map(x => x.data.SBKV && x.data.SBKV[0])
+
+        this.setState({winrateData})
     }
 
     handleGobanVertexClick(evt) {
@@ -108,7 +121,8 @@ class MainView extends Component {
     }, {
         width,
         height,
-        gobanCrosshair
+        gobanCrosshair,
+        winrateData
     }) {
         let node = gameTree.get(treePosition)
         let board = gametree.getBoard(gameTree, treePosition)
@@ -126,6 +140,10 @@ class MainView extends Component {
             }
         }
 
+        let showWinrateGraph = winrateData != undefined && winrateData.some(x => x != null)
+        let bottom = showWinrateGraph ? "100px": "40px"
+        let level = gameTree.getLevel(treePosition)
+
         return h('section',
             {
                 id: 'main',
@@ -138,7 +156,7 @@ class MainView extends Component {
             h('main',
                 {
                     ref: el => this.mainElement = el,
-                    style: {width, height}
+                    style: {width, height, bottom: bottom}
                 },
 
                 h(Goban, {
@@ -171,6 +189,20 @@ class MainView extends Component {
 
                     onVertexClick: this.handleGobanVertexClick,
                     onLineDraw: this.handleGobanLineDraw
+                })
+            ),
+
+            h('section', {
+                id: 'winrate',
+                class: classNames({
+                        showwinrate: showWinrateGraph
+                    }),
+                },
+                h(WinrateGraph, {
+                    width: 100,
+                    data: winrateData,
+                    currentIndex: level,
+                    onCurrentIndexChange: this.handleWinrateGraphChange
                 })
             ),
 

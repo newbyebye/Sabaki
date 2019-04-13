@@ -159,13 +159,6 @@ class Sidebar extends Component {
                 onMouseDown: this.handleVerticalResizerMouseDown
             }),
 
-            h(WinrateGraph, {
-                width: winrateGraphWidth,
-                data: winrateData,
-                currentIndex: level,
-                onCurrentIndexChange: this.handleWinrateGraphChange
-            }),
-
             h('div', {ref: el => this.horizontalSplitContainer = el, class: 'graphproperties'},
                 h(Slider, {
                     showSlider: showGameGraph,

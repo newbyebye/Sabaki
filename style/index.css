@@ -458,9 +458,15 @@ header, #bar .bar {
 }
 
 #winrategraph {
-        position: relative;
+        position: absolute;
         visibility: hidden;
-        height: 50px;
+        height: 60px;
+        left: 0;
+        right: 0;
+        bottom: 40px;
+        overflow: hidden;
+        text-align: center;
+
         background: #181818;
         box-shadow: 10px 0 10px #111;
         overflow: hidden;
