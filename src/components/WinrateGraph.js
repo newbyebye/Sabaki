@@ -12,7 +12,14 @@ class WinrateGraph extends Component {
 
         this.state = {
             height: setting.get('view.winrategraph_height'),
+            invert: setting.get('view.winrategraph_invert')
         }
+
+        setting.events.on('change', ({key, value}) => {
+            if (key === 'view.winrategraph_invert') {
+                this.setState({invert: value})
+            }
+        })
 
         this.handleMouseDown = evt => {
             this.mouseDown = true
@@ -25,11 +32,12 @@ class WinrateGraph extends Component {
         }
     }
 
-    shouldComponentUpdate({width, currentIndex, data}, {height}) {
+    shouldComponentUpdate({width, currentIndex, data}, {height, invert}) {
         return width !== this.props.width
             || currentIndex !== this.props.currentIndex
             || data[currentIndex] !== this.props.data[currentIndex]
             || height !== this.state.height
+            || invert !== this.state.invert
     }
 
     componentDidMount() {
@@ -67,7 +75,6 @@ class WinrateGraph extends Component {
 
     render({width, currentIndex, data}) {
         let scale = width / data.length
-
         let dataDiff = data.map((x, i) => i === 0 || x == null || data[i - 1] == null ? null : x - data[i - 1])
         let dataDiffMax = Math.max(...dataDiff.map(Math.abs), 25)
 
@@ -99,7 +106,7 @@ class WinrateGraph extends Component {
                 // Draw background
 
                 h('defs', {},
-                    h('linearGradient', {id: 'bgGradient', x1: 0, y1: 0, x2: 0, y2: 1},
+                    h('linearGradient', {id: 'bgGradient', x1: 0, y1: invert ? 1 : 0, x2: 0, y2: invert ? 0 : 1},
                         h('stop', {
                             offset: '0%',
                             'stop-color': 'white',

@@ -27,9 +27,9 @@ class PreferencesItem extends Component {
             onChange(Object.assign({checked}, this.props))
         }
 
-        setting.events.on('change', ({key}) => {
+        setting.events.on('change', ({key, value}) => {
             if (key === this.props.id) {
-                this.setState({checked: setting.get(key)})
+                this.setState({checked: value})
             }
         })
     }
@@ -144,7 +144,11 @@ class GeneralTab extends Component {
                 h(PreferencesItem, {
                     id: 'app.always_show_result',
                     text: t('Always show game result')
-                })
+                }),
+                h(PreferencesItem, {
+                    id: 'view.winrategraph_invert',
+                    text: t('Invert winrate graph')
+                }),
             ),
 
             h('p', {}, h('label', {},
@@ -199,9 +203,9 @@ class PathInputItem extends Component {
             })
         }
 
-        setting.events.on('change', ({key}) => {
+        setting.events.on('change', ({key, value}) => {
             if (key === this.props.id) {
-                this.setState({value: setting.get(key)})
+                this.setState({value: value})
             }
         })
     }
@@ -315,9 +319,9 @@ class ThemesTab extends Component {
             })
         }
 
-        setting.events.on('change', ({key}) => {
+        setting.events.on('change', ({key, value}) => {
             if (key === 'theme.current') {
-                this.setState({currentTheme: setting.get(key)})
+                this.setState({currentTheme: value})
             }
         })
     }

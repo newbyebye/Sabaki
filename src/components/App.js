@@ -747,7 +747,9 @@ class App extends Component {
         this.setState({gameTrees})
         this.recordHistory()
 
-        return sgf.stringify(gameTrees.map(tree => tree.root))
+        return sgf.stringify(gameTrees.map(tree => tree.root), {
+            linebreak: setting.get('sgf.format_code') ? helper.linebreak : ''
+        })
     }
 
     generateTreeHash() {
@@ -1473,6 +1475,7 @@ class App extends Component {
         let {gameTrees, gameIndex} = this.state
         let newIndex = Math.max(0, Math.min(gameTrees.length - 1, gameIndex + step))
 
+        this.closeDrawer()
         this.setCurrentTreePosition(gameTrees[newIndex], gameTrees[newIndex].root.id)
     }
 
@@ -1628,10 +1631,10 @@ class App extends Component {
             }
 
             for (let key in props) {
-                if (data[key] == null) continue
+                if (!(key in data)) continue
                 let value = data[key]
 
-                if (value && value.toString().trim() !== '') {
+                if (value && value.toString() !== '') {
                     if (key === 'komi') {
                         if (isNaN(value)) value = 0
 
@@ -1840,6 +1843,7 @@ class App extends Component {
         if (gameIndex < 0) return
 
         let board = gametree.getBoard(tree, treePosition)
+        let playerSign = this.getPlayer(tree, treePosition)
         let inherit = setting.get('edit.flatten_inherit_root_props')
 
         let newTree = tree.mutate(draft => {
@@ -1865,6 +1869,7 @@ class App extends Component {
 
         this.setState({gameTrees: gameTrees.map((t, i) => i === gameIndex ? newTree : t)})
         this.setCurrentTreePosition(newTree, newTree.root.id)
+        this.setPlayer(newTree, treePosition, playerSign)
     }
 
     makeMainVariation(tree, treePosition) {
@@ -2425,7 +2430,7 @@ class App extends Component {
         })
     }
 
-    async syncEngines({passPlayer = null} = {}) {
+    async syncEngines() {
         if (this.attachedEngineSyncers.every(x => x == null)) return
 
         if (this.engineBusySyncing) return
@@ -2442,17 +2447,6 @@ class App extends Component {
                 }))
 
                 if (treePosition === this.state.treePosition) break
-            }
-
-            // Send pass if required
-
-            if (passPlayer != null) {
-                let color = passPlayer > 0 ? 'B' : 'W'
-                let {controller} = this.attachedEngineSyncers[passPlayer > 0 ? 0 : 1] || {}
-
-                if (controller != null) {
-                    await controller.sendCommand({name: 'play', args: [color, 'pass']})
-                }
             }
         } catch (err) {
             this.engineBusySyncing = false
@@ -2568,7 +2562,7 @@ class App extends Component {
         return analysis
     }
 
-    async generateMove({passPlayer = null, firstMove = true, followUp = false} = {}) {
+    async generateMove({firstMove = true, followUp = false} = {}) {
         this.closeDrawer()
 
         if (!firstMove && !this.state.generatingMoves) {
@@ -2602,7 +2596,7 @@ class App extends Component {
         this.setBusy(true)
 
         try {
-            await this.syncEngines({passPlayer})
+            await this.syncEngines()
         } catch (err) {
             this.stopGeneratingMoves()
             this.hideInfoOverlay()
