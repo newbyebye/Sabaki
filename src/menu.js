@@ -429,6 +429,12 @@ exports.buildMenu = function() {
                     accelerator: 'F10',
                     click: () => sabaki.generateMove({analyze: sabaki.state.analysis != null})
                 },
+
+                {
+                    label: t('menu.engines', 'Review'),
+                    click: () => sabaki.startReview()
+                },
+
                 {type: 'separator'},
                 {
                     label: t('menu.engines', 'Toggle &GTP Console'),

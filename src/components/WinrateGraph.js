@@ -48,7 +48,7 @@ class WinrateGraph extends Component {
                 evt.preventDefault()
 
                 let height = Math.min(
-                    500, Math.max(winrateGraphMinHeight, evt.clientY)
+                    60, Math.max(winrateGraphMinHeight, evt.clientY)
                 )
                 this.setState({height})
                 return
@@ -73,14 +73,8 @@ class WinrateGraph extends Component {
 
     }
 
-    render() {
-        let {width, currentIndex, data} = this.props
-        let {invert} = this.state
-
-        if (invert) {
-            data = data.map(x => x == null ? null : 100 - x)
-        }
-
+    render({width, currentIndex, data}) {
+        let scale = width / data.length
         let dataDiff = data.map((x, i) => i === 0 || x == null || data[i - 1] == null ? null : x - data[i - 1])
         let dataDiffMax = Math.max(...dataDiff.map(Math.abs), 25)
 
@@ -89,9 +83,11 @@ class WinrateGraph extends Component {
             {
                 ref: el => this.element = el,
                 id: 'winrategraph',
+                /*
                 style: {
                     height: this.state.height + 'px'
                 },
+                */
                 onMouseDown: this.handleMouseDown
             },
 
@@ -122,25 +118,6 @@ class WinrateGraph extends Component {
                             'stop-opacity': 0.1
                         })
                     ),
-
-                    h('clipPath', {id: 'clipGradient'},
-                        h('path', {
-                            fill: 'black',
-                            'stroke-width': 0,
-                            d: (() => {
-                                let instructions = data.map((x, i) => {
-                                    if (x == null) return i === 0 ? [i, 50] : null
-                                    return [i, x]
-                                }).filter(x => x != null)
-
-                                if (instructions.length === 0) return ''
-
-                                return `M ${instructions[0][0]},${invert ? 0 : 100} `
-                                    + instructions.map(x => `L ${x.join(',')}`).join(' ')
-                                    + ` L ${instructions.slice(-1)[0][0]},${invert ? 0 : 100} Z`
-                            })()
-                        })
-                    )
                 ),
 
                 h('rect', {
@@ -192,51 +169,18 @@ class WinrateGraph extends Component {
                     'vector-effect': 'non-scaling-stroke'
                 }),
 
-                // Draw differential bar graph
-
                 h('path', {
-                    fill: 'none',
-                    stroke: '#F76047',
-                    'stroke-width': 1,
-
-                    d: dataDiff.map((x, i) => {
-                        if (x == null || Math.abs(x) <= 3) return ''
-
-                        return `M ${i},50 l 0,${x * 50 / dataDiffMax}`
-                    }).join(' ')
-                }),
-
-                // Draw data lines
-
-                h('path', {
-                    fill: 'none',
-                    stroke: '#eee',
-                    'stroke-width': 2,
-                    'vector-effect': 'non-scaling-stroke',
-
-                    d: data.map((x, i) => {
-                        if (x == null) return ''
-
-                        let command = i === 0 || data[i - 1] == null ? 'M' : 'L'
-                        return `${command} ${i},${x}`
-                    }).join(' ')
-                }),
-
-                h('path', {
-                    fill: 'none',
+                    fill: '#eee',
                     stroke: '#ccc',
-                    'stroke-width': 2,
-                    'stroke-dasharray': 2,
+                    'stroke-width': 1,
+                    'stroke-dasharray': 1,
                     'vector-effect': 'non-scaling-stroke',
 
                     d: data.map((x, i) => {
-                        if (i === 0) return 'M 0,50'
+                        if (i === 0) return ''
 
-                        if (x == null && data[i - 1] != null)
-                            return `M ${i - 1},${data[i - 1]}`
-
-                        if (x != null && data[i - 1] == null)
-                            return `L ${i},${x}`
+                        if (x != null && data[i] != undefined)
+                            return `M ${(i - 0.5) * scale}, ${100 - data[i]}, L${(i - 0.5) * scale}, 100, L${(i + 0.5) * scale} , 100, L${(i + 0.5) * scale}, ${100 - data[i]}`
 
                         return ''
                     }).join(' ')
