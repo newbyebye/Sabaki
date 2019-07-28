@@ -19,69 +19,69 @@ class ReviewEngine {
     }
 
     start() {
-            let engine = this.engine
-            let syncer = new EngineSyncer(engine)
-            this.attachedEngineSyncer = syncer
+        let engine = this.engine
+        let syncer = new EngineSyncer(engine)
+        this.attachedEngineSyncer = syncer
 
-            syncer.on('busy-changed', () => {
-                this.busy = syncer.busy
+        syncer.on('busy-changed', () => {
+            this.busy = syncer.busy
+        })
+
+        syncer.controller.on('command-sent', evt => {
+            gtplogger.write({
+                type: 'stdin',
+                message: gtp.Command.toString(evt.command),
+                sign: 0,
+                engine: engine.name
             })
 
-            syncer.controller.on('command-sent', evt => {
-                gtplogger.write({
-                    type: 'stdin',
-                    message: gtp.Command.toString(evt.command),
-                    sign: 0,
-                    engine: engine.name
-                })
+            this.handleCommandSent(Object.assign({syncer}, evt))
+        })
 
-                this.handleCommandSent(Object.assign({syncer}, evt))
+        syncer.controller.on('stderr', ({content}) => {
+            gtplogger.write({
+                type: 'stderr',
+                message: content,
+                sign:  this.sign,
+                engine: engine.name
             })
 
-            syncer.controller.on('stderr', ({content}) => {
-                gtplogger.write({
-                    type: 'stderr',
-                    message: content,
-                    sign:  this.sign,
-                    engine: engine.name
-                })
+            if (content.length == 0) {
+                return
+            }
 
-                if (content.length == 0) {
-                    return
-                }
+            this.app.setState(({consoleLog}) => ({
+                    consoleLog: [...consoleLog, {
+                        sign: this.sign,
+                        name: engine.name,
+                        analyze_command: this.analyze_command,
+                        response: {content, internal: true}
+                    }]
+                }))
+        })
 
-                this.app.setState(({consoleLog}) => ({
-                        consoleLog: [...consoleLog, {
-                            sign: this.sign,
-                            name: engine.name,
-                            analyze_command: this.analyze_command,
-                            response: {content, internal: true}
-                        }]
-                    }))
+        syncer.controller.on('started', () => {
+            gtplogger.write({
+                type: 'meta',
+                message: 'Engine Started',
+                sign: 0,
+                engine: engine.name
             })
+            // startreview
+            this.startReview()
+        })
 
-            syncer.controller.on('started', () => {
-                gtplogger.write({
-                    type: 'meta',
-                    message: 'Engine Started',
-                    sign: 0,
-                    engine: engine.name
-                })
-                // startreview
-                this.startReview()
+        
+        syncer.controller.on('stopped', () =>  {
+            gtplogger.write({
+                type: 'meta',
+                message: 'Engine Stopped',
+                sign: 0,
+                engine: engine.name
             })
-
-            
-            syncer.controller.on('stopped', () =>  {
-                gtplogger.write({
-                    type: 'meta',
-                    message: 'Engine Stopped',
-                    sign: 0,
-                    engine: engine.name
-                })
-            })
-            
-            syncer.controller.start()
+        })
+        
+        syncer.controller.start()
     }
 
     async startReview() {
@@ -118,7 +118,7 @@ class ReviewEngine {
             await controller.sendCommand({name: 'lz-analyze', args: [color, interval]})
             
             // move to current
-            console.log("move to node: ", node)
+            // console.log("move to node: ", node)
             this.analyze_command = null;
             await this.attachedEngineSyncer.sync(tree, treePosition)
             
@@ -153,7 +153,8 @@ class ReviewEngine {
                         let move = matchMove[0].split(" ")[0]
 
                         let matchV = header.match(/V:[ ]*[\d.]*/)
-                        let winrate = matchV[0].split(/V:[ ]*/)[1]
+                        let winrate = parseFloat(matchV[0].split(/V:[ ]*/)[1])
+                        if (sign < 0) winrate = 100 - winrate
 
                         let matchN = header.match(/N:[ ]*[\d.]*/)
                         let prior = matchN[0].split(/N:[ ]*/)[1]
@@ -174,7 +175,14 @@ class ReviewEngine {
 
             analysis =  analysis.map(x => {
                     return "sign " + sign + " visits " + x.visits + " winrate " + x.winrate + " prior " +
-                        x.prior + " pv " + x.variation.map(x => sgf.stringifyVertex(x).toUpperCase()).join(" ")                 
+                        x.prior + " pv " + x.variation.map(x => {
+                            let vv = sgf.stringifyVertex(x)
+                            if (vv != null) {
+                                return vv.toUpperCase()
+                            } else {
+                                return x
+                            }
+                        }).join(" ")
                 })
 
             // record black win rate
@@ -250,6 +258,45 @@ class ReviewEngine {
                 waiting: false
             })
         })
+    }
+
+    parseAnalysisSgf(gopv) {
+        let analysis = gopv
+            .map(x => x.trim())
+            .map(x => {
+                let matchPV = x.match(/(pass|[A-Z][A-Z])(\s+(pass|[A-Z][A-Z]))*\s*$/)
+                if (matchPV == null)
+                    return null
+                let matchPass = matchPV[0].match(/pass/)
+                if (matchPass == null) {
+                    return [x.slice(0, matchPV.index), matchPV[0].split(/\s+/)]
+                } else {
+                    return [x.slice(0, matchPV.index), matchPV[0].slice(0, matchPass.index).split(/\s+/)]
+                }
+            })
+            .filter(x => x != null)
+            .map(([x, y]) => [
+                x.trim().split(/\s+/).slice(0, -1),
+                y.filter(x => x.length >= 2)
+            ])
+            .map(([tokens, pv]) => {
+                let keys = tokens.filter((_, i) => i % 2 === 0)
+                let values = tokens.filter((_, i) => i % 2 === 1)
+
+                keys.push('pv')
+                values.push(pv)
+
+                return keys.reduce((acc, x, i) => (acc[x] = values[i], acc), {})
+            })
+            .map(({sign, visits, winrate, pv}) => ({
+                sign: +sign,
+                vertex: sgf.parseVertex(pv[0].toLowerCase()),
+                visits: +visits,
+                win: +winrate,
+                variation: pv.map(x => sgf.parseVertex(x.toLowerCase()))
+            }))
+
+        return analysis
     }
 }
 

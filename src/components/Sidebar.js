@@ -62,8 +62,6 @@ class Sidebar extends Component {
         this.handleCommentInput = evt => {
             sabaki.setComment(this.props.gameTree, this.props.treePosition, evt)
         }
-
-        this.componentWillReceiveProps(props)
     }
 
     shouldComponentUpdate(nextProps) {
@@ -107,21 +105,6 @@ class Sidebar extends Component {
         })
     }
 
-    componentWillReceiveProps({gameTree, gameCurrents, gameIndex} = {}) {
-        // Get winrate data
-
-        let currentTrack = [...gameTree.listCurrentNodes(gameCurrents[gameIndex])]
-        let winrateData = currentTrack.map(x => x.data.SBKV && x.data.SBKV[0])
-
-        this.setState({winrateData})
-    }
-
-    componentDidUpdate(_, {winrateData}) {
-        if (winrateData.some(x => x != null) !== this.state.winrateData.some(x => x != null)) {
-            this.gameGraph.remeasure()
-        }
-    }
-
     render({
         mode,
         gameIndex,
@@ -135,22 +118,16 @@ class Sidebar extends Component {
         graphGridSize,
         graphNodeSize
     }, {
-        winrateData,
         sidebarSplit,
         sidebarSplitTransition
     }) {
         let node = gameTree.get(treePosition)
-        let winrateGraphWidth = Math.max(Math.ceil((gameTree.getHeight() - 1) / 50) * 50, 1)
         let level = gameTree.getLevel(treePosition)
-        let showWinrateGraph = winrateData.some(x => x != null)
 
         return h('section',
             {
                 ref: el => this.element = el,
                 id: 'sidebar',
-                class: classNames({
-                    showwinrate: showWinrateGraph
-                }),
                 style: {width: sidebarWidth}
             },
 

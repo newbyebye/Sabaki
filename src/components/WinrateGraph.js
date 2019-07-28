@@ -65,22 +65,18 @@ class WinrateGraph extends Component {
 
     }
 
-    render({width, currentIndex, data}) {
+    render({width, currentIndex, data, diffData}) {
         let scale = width / data.length
 
-        let dataDiff = data.map((x, i) => i === 0 || x == null || data[i - 1] == null ? null : x - data[i - 1])
-        let dataDiffMax = Math.max(...dataDiff.map(Math.abs), 25)
-
+        //let dataDiff = data.map((x, i) => i === 0 || x == null || data[i - 1] == null ? null : x - data[i - 1])
+        //let dataDiffMax = Math.max(...dataDiff.map(Math.abs), 25)
+        console.log(diffData);
+        
         return h('section',
 
             {
                 ref: el => this.element = el,
                 id: 'winrategraph',
-                /*
-                style: {
-                    height: this.state.height + 'px'
-                },
-                */
                 onMouseDown: this.handleMouseDown
             },
 

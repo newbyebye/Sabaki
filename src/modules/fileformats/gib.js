@@ -183,9 +183,10 @@ exports.parseFile = function(filename) {
     let jschardet = require('jschardet')
 
     let buffer = fs.readFileSync(filename)
-    let encoding = 'utf8'
+    let encoding = 'GBK'
     let detected = jschardet.detect(buffer)
-    if (detected.confidence > 0.2) encoding = detected.encoding
+
+    if (detected.confidence > 0.7) encoding = detected.encoding
 
     content = iconv.decode(buffer, encoding)
 

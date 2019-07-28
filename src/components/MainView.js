@@ -11,6 +11,7 @@ const WinrateGraph = require('./WinrateGraph')
 const classNames = require('classnames')
 
 const gametree = require('../modules/gametree')
+const ReviewEngine = require('../modules/review')
 
 class MainView extends Component {
     constructor(props) {
@@ -67,8 +68,17 @@ class MainView extends Component {
 
         let currentTrack = [...gameTree.listCurrentNodes(gameCurrents[gameIndex])]
         let winrateData = currentTrack.map(x => x.data.SBKV && x.data.SBKV[0])
+        let diffData = currentTrack.map(x => {
+            let sbkv = x.data.SBKV && x.data.SBKV[0];
+            let pv = ReviewEngine.parseAnalysisSgf(x.data.GOPV);
+            if (pv && pv[0] && pv[0].win) {
+                return pv[0].win - sbkv
+            } else {
+                return 0
+            }
+        })
 
-        this.setState({winrateData})
+        this.setState({winrateData, diffData})
     }
 
     handleGobanVertexClick(evt) {
@@ -122,7 +132,8 @@ class MainView extends Component {
         width,
         height,
         gobanCrosshair,
-        winrateData
+        winrateData,
+        diffData
     }) {
         let node = gameTree.get(treePosition)
         let board = gametree.getBoard(gameTree, treePosition)
@@ -201,6 +212,7 @@ class MainView extends Component {
                 h(WinrateGraph, {
                     width: 100,
                     data: winrateData,
+                    diffData: diffData,
                     currentIndex: level,
                     onCurrentIndexChange: this.handleWinrateGraphChange
                 })
