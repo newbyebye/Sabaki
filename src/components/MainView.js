@@ -71,7 +71,7 @@ class MainView extends Component {
         let winrateData = currentTrack.map(x => x.data.SBKV && x.data.SBKV[0])
         let diffData = currentTrack.map(x => {
             let sbkv = x.data.SBKV && x.data.SBKV[0];
-            let pv = ReviewEngine.parseAnalysisSgf(x.data.GOPV);
+            let pv = new ReviewEngine().parseAnalysisSgf(x.data.GOPV);
             if (pv && pv[0] && pv[0].win) {
                 return pv[0].win - sbkv
             } else {

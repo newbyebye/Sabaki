@@ -1449,8 +1449,8 @@ class App extends Component {
             treePosition: id
         })
 
-        if (gopv !== undefined) {
-            let analysis = ReviewEngine.parseAnalysisSgf(gopv)
+        if (gopv !== undefined && this.review) {
+            let analysis = this.review.parseAnalysisSgf(gopv)
             this.setState({analysis: analysis, analysisTreePosition: id})
         }
 

@@ -259,6 +259,9 @@ class ReviewEngine {
     }
 
     parseAnalysisSgf(gopv) {
+        if (gopv === undefined) {
+            return undefined
+        }
         let analysis = gopv
             .map(x => x.trim())
             .map(x => {

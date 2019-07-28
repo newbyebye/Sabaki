@@ -488,6 +488,7 @@ class InfoDrawer extends Component {
                             )
                         )
                     ),
+                    /*
                     h(InfoDrawerItem, {title: t('Board Size')},
                         h('input', {
                             type: 'number',
@@ -517,7 +518,7 @@ class InfoDrawer extends Component {
                             disabled: !emptyTree,
                             onInput: this.handleBoardHeightChange
                         })
-                    ),
+                    ),*/
 
                     h(InfoDrawerItem, {title: t('Review')},
                         h('input', {
