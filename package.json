@@ -54,7 +54,7 @@
       "**/*",
       "bundle.js",
       "!bundle.js.map",
-      "!**/{.c9,scss,docs,test,tests,devtools,plugins,examples}${/*}",
+      "!**/{.c9,.log,scss,docs,test,tests,devtools,plugins,examples}${/*}",
       "!data/shapes.sgf",
       "!src/components${/*}",
       "!src/modules${/*}"
@@ -96,7 +96,7 @@
   },
   "scripts": {
     "test": "mocha",
-    "start": "electron ./",
+    "start": "npm run build && electron ./",
     "bundle": "webpack --mode production --progress",
     "watch": "webpack --mode development --progress --watch",
     "build": "npm run bundle && electron-builder --dir",
