@@ -74,6 +74,10 @@ class WinrateGraph extends Component {
     }
 
     render({width, currentIndex, data}) {
+        let {invert} = this.state
+        if (invert) {
+            data = data.map(x => x == null ? null : 100 - x)
+        }
         let scale = width / data.length
         let dataDiff = data.map((x, i) => i === 0 || x == null || data[i - 1] == null ? null : x - data[i - 1])
         let dataDiffMax = Math.max(...dataDiff.map(Math.abs), 25)
@@ -118,6 +122,26 @@ class WinrateGraph extends Component {
                             'stop-opacity': 0.1
                         })
                     ),
+                    /*
+                    h('clipPath', {id: 'clipGradient'},
+                        h('path', {
+                            fill: 'black',
+                            'stroke-width': 0,
+                            d: (() => {
+                                let instructions = data.map((x, i) => {
+                                    if (x == null) return i === 0 ? [i, 50] : null
+                                    return [i, x]
+                                }).filter(x => x != null)
+
+                                if (instructions.length === 0) return ''
+
+                                return `M ${instructions[0][0]},${invert ? 0 : 100} `
+                                    + instructions.map(x => `L ${x.join(',')}`).join(' ')
+                                    + ` L ${instructions.slice(-1)[0][0]},${invert ? 0 : 100} Z`
+                            })()
+                        })
+                    )
+                    */
                 ),
 
                 h('rect', {

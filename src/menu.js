@@ -18,7 +18,12 @@ let treePosition = () => [sabaki.state.gameTrees[sabaki.state.gameIndex], sabaki
 
 let menu = null
 
-exports.buildMenu = function() {
+exports.build = function(props = {}) {
+    let {
+        disableAll = false,
+        disableGameNavigation = false
+    } = props
+
     let data = [
         {
             id: 'file',
@@ -27,18 +32,20 @@ exports.buildMenu = function() {
                 {
                     label: t('menu.file', '&New'),
                     accelerator: 'CmdOrCtrl+N',
+                    enabled: !disableGameNavigation,
                     click: () => sabaki.newFile({playSound: true, showInfo: true})
                 },
                 {
                     label: t('menu.file', 'New &Window'),
                     accelerator: 'CmdOrCtrl+Shift+N',
                     clickMain: 'newWindow',
-                    enabled: true
+                    neverDisable: true
                 },
                 {type: 'separator'},
                 {
                     label: t('menu.file', '&Open…'),
                     accelerator: 'CmdOrCtrl+O',
+                    enabled: !disableGameNavigation,
                     click: () => sabaki.loadFile()
                 },
                 {
@@ -57,6 +64,7 @@ exports.buildMenu = function() {
                     submenu: [
                         {
                             label: t('menu.file', '&Load SGF'),
+                            enabled: !disableGameNavigation,
                             click: () => sabaki.loadContent(clipboard.readText(), 'sgf')
                         },
                         {
@@ -65,7 +73,7 @@ exports.buildMenu = function() {
                         },
                         {
                             label: t('menu.file', 'Copy &ASCII Diagram'),
-                            click: () => clipboard.writeText(gametree.getBoard(...treePosition()).generateAscii())
+                            click: () => clipboard.writeText(sabaki.getBoardAscii())
                         }
                     ]
                 },
@@ -78,6 +86,7 @@ exports.buildMenu = function() {
                 {
                     label: t('menu.file', '&Manage Games…'),
                     accelerator: 'CmdOrCtrl+Shift+M',
+                    enabled: !disableGameNavigation,
                     click: () => sabaki.openDrawer('gamechooser')
                 },
                 {type: 'separator'},
@@ -397,14 +406,14 @@ exports.buildMenu = function() {
                 },
                 {
                     label: t('menu.engines', '&Suspend'),
-                    enabled: true,
+                    neverDisable: true,
                     click: () => sabaki.suspendEngines()
                 },
                 {type: 'separator'},
                 {
                     label: t('menu.engines', 'S&ynchronize'),
                     accelerator: 'F6',
-                    click: () => sabaki.syncEngines()
+                    click: () => sabaki.syncEngines({showErrorDialog: true})
                 },
                 {
                     label: t('menu.engines', 'Toggle A&nalysis'),
@@ -469,27 +478,6 @@ exports.buildMenu = function() {
                 {
                     label: t('menu.tools', '&Edit SGF Properties…'),
                     click: () => sabaki.openDrawer('advancedproperties')
-                },
-                {type: 'separator'},
-                {
-                    label: t('menu.tools', '&Rotate Clockwise'),
-                    click: () => sabaki.rotateBoard(false)
-                },
-                {
-                    label: t('menu.tools', 'Rotate &Anticlockwise'),
-                    click: () => sabaki.rotateBoard(true)
-                },
-                {
-                    label: t('menu.tools', '&Flip Horizontally'),
-                    click: () => sabaki.flipBoard(true)
-                },
-                {
-                    label: t('menu.tools', 'Flip &Vertically'),
-                    click: () => sabaki.flipBoard(false)
-                },
-                {
-                    label: t('menu.tools', '&Invert Colors'),
-                    click: () => sabaki.invertColors()
                 }
             ]
         },
@@ -510,33 +498,39 @@ exports.buildMenu = function() {
                 {
                     label: t('menu.view', 'Show &Coordinates'),
                     accelerator: 'CmdOrCtrl+Shift+C',
-                    checked: 'view.show_coordinates',
+                    type: 'checkbox',
+                    checked: setting.get('view.show_coordinates'),
                     click: () => toggleSetting('view.show_coordinates')
                 },
                 {
                     label: t('menu.view', 'Show Move N&umbers'),
-                    checked: 'view.show_move_numbers',
+                    type: 'checkbox',
+                    checked: setting.get('view.show_move_numbers'),
                     click: () => toggleSetting('view.show_move_numbers')
                 },
                 {
                     label: t('menu.view', 'Show Move Colori&zation'),
-                    checked: 'view.show_move_colorization',
+                    type: 'checkbox',
+                    checked: setting.get('view.show_move_colorization'),
                     click: () => toggleSetting('view.show_move_colorization')
                 },
                 {
                     label: t('menu.view', 'Show &Next Moves'),
-                    checked: 'view.show_next_moves',
+                    type: 'checkbox',
+                    checked: setting.get('view.show_next_moves'),
                     click: () => toggleSetting('view.show_next_moves')
                 },
                 {
                     label: t('menu.view', 'Show &Sibling Variations'),
-                    checked: 'view.show_siblings',
+                    type: 'checkbox',
+                    checked: setting.get('view.show_siblings'),
                     click: () => toggleSetting('view.show_siblings')
                 },
                 {type: 'separator'},
                 {
                     label: t('menu.view', 'Show Game &Tree'),
-                    checked: 'view.show_graph',
+                    type: 'checkbox',
+                    checked: setting.get('view.show_graph'),
                     accelerator: 'CmdOrCtrl+T',
                     click: () => {
                         toggleSetting('view.show_graph')
@@ -545,7 +539,8 @@ exports.buildMenu = function() {
                 },
                 {
                     label: t('menu.view', 'Show Co&mments'),
-                    checked: 'view.show_comments',
+                    type: 'checkbox',
+                    checked: setting.get('view.show_comments'),
                     accelerator: 'CmdOrCtrl+Shift+T',
                     click: () => {
                         toggleSetting('view.show_comments')
@@ -576,6 +571,41 @@ exports.buildMenu = function() {
                             click: () => setting.set('app.zoom_factor', 1)
                         }
                     ]
+                },
+                {
+                    label: t('menu.view', 'T&ransform Board'),
+                    submenu: [
+                        {
+                            label: t('menu.tools', 'Rotate &Anticlockwise'),
+                            accelerator: 'CmdOrCtrl+Alt+Left',
+                            click: () => sabaki.pushBoardTransformation('rrr')
+                        },
+                        {
+                            label: t('menu.tools', 'Rotate &Clockwise'),
+                            accelerator: 'CmdOrCtrl+Alt+Right',
+                            click: () => sabaki.pushBoardTransformation('r')
+                        },
+                        {
+                            label: t('menu.tools', '&Flip Horizontally'),
+                            accelerator: 'CmdOrCtrl+Alt+Down',
+                            click: () => sabaki.pushBoardTransformation('f')
+                        },
+                        {
+                            label: t('menu.tools', 'Flip &Vertically'),
+                            accelerator: 'CmdOrCtrl+Alt+Shift+Down',
+                            click: () => sabaki.pushBoardTransformation('rrf')
+                        },
+                        {
+                            label: t('menu.tools', '&Invert Colors'),
+                            accelerator: 'CmdOrCtrl+Alt+Up',
+                            click: () => sabaki.pushBoardTransformation('i')
+                        },
+                        {
+                            label: t('menu.tools', '&Reset'),
+                            accelerator: 'CmdOrCtrl+Alt+0',
+                            click: () => sabaki.setBoardTransformation('')
+                        }
+                    ]
                 }
             ]
         },
@@ -584,7 +614,7 @@ exports.buildMenu = function() {
                 {
                     label: t('menu.file', 'New &Window'),
                     clickMain: 'newWindow',
-                    enabled: true
+                    neverDisable: true
                 },
                 {role: 'minimize'},
                 {type: 'separator'},
@@ -606,7 +636,7 @@ exports.buildMenu = function() {
                 {
                     label: t('menu.help', 'Check for &Updates'),
                     clickMain: 'checkForUpdates',
-                    enabled: true
+                    neverDisable: true
                 },
                 {type: 'separator'},
                 {
@@ -737,36 +767,32 @@ exports.buildMenu = function() {
         viewMenu.submenu.splice(0, 1)
     }
 
-    // Generate ids for all menu items
-
-    let generateIds = (menu, idPrefix = '') => {
+    let processMenu = (menu, idPrefix = '') => {
         menu.forEach((item, i) => {
+            // Generate id
+
             if (item.id == null) {
                 item.id = idPrefix + i
             }
 
+            // Handle disableAll prop
+
+            if (disableAll && !item.neverDisable && !('submenu' in item || 'role' in item)) {
+                item.enabled = false
+            }
+
             if ('submenu' in item) {
-                generateIds(item.submenu, `${item.id}-`)
+                processMenu(item.submenu, `${item.id}-`)
             }
         })
 
         return menu
     }
 
-    menu = generateIds(data)
+    menu = processMenu(data)
     return menu
 }
 
-exports.buildMenu()
-
-exports.clone = function(x = menu) {
-    if (Array.isArray(x)) {
-        return [...Array(x.length)].map((_, i) => exports.clone(x[i]))
-    } else if (typeof x === 'object') {
-        let result = {}
-        for (let key in x) result[key] = exports.clone(x[key])
-        return result
-    }
-
-    return x
+exports.get = function(props) {
+    return exports.build(props)
 }

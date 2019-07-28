@@ -118,7 +118,6 @@ class ReviewEngine {
             await controller.sendCommand({name: 'lz-analyze', args: [color, interval]})
             
             // move to current
-            console.log("move to node: ", node)
             this.analyze_command = null;
             await this.attachedEngineSyncer.sync(tree, treePosition)
             
@@ -170,7 +169,6 @@ class ReviewEngine {
 
             let winrate = analysis[0].winrate
             analysis = analysis.slice(1)
-            console.log("winrate: ", winrate, "pv", analysis);
 
             analysis =  analysis.map(x => {
                     return "sign " + sign + " visits " + x.visits + " winrate " + x.winrate + " prior " +
