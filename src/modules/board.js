@@ -241,105 +241,29 @@ class Board {
     }
 
     getHandicapPlacement(count, tygemflag = false) {
-        if (Math.min(this.width, this.height) < 6 || count < 2) return []
+        if (Math.min(this.width, this.height) <= 6 || count < 2) return []
 
-        let nearX = this.width >= 13 ? 3 : 2
-        let nearY = this.height >= 13 ? 3 : 2
-        let farX = this.width - nearX - 1
-        let farY = this.height - nearY - 1
-        let middleX = (this.width - 1) / 2
-        let middleY = (this.height - 1) / 2
+        let [nearX, nearY] = [this.width, this.height].map(x => x >= 13 ? 3 : 2)
+        let [farX, farY] = [this.width - nearX - 1, this.height - nearY - 1]
+        let [middleX, middleY] = [this.width, this.height].map(x => (x - 1) / 2)
 
-        let result
+        let result = !tygemflag
+            ? [[nearX, farY], [farX, nearY], [farX, farY], [nearX, nearY]]
+            : [[nearX, farY], [farX, nearY], [nearX, nearY], [farX, farY]]
 
-        if (!tygemflag) {
-            result = [[nearX, farY], [farX, nearY], [farX, farY], [nearX, nearY]]
-        } else {
-            result = [[nearX, farY], [farX, nearY], [nearX, nearY], [farX, farY]]
-        }
-
-        if (this.width % 2 !== 0 && this.height % 2 !== 0) {
+        if (this.width % 2 !== 0 && this.height % 2 !== 0 && this.width !== 7 && this.height !== 7) {
             if (count === 5) result.push([middleX, middleY])
             result.push([nearX, middleY], [farX, middleY])
 
             if (count === 7) result.push([middleX, middleY])
             result.push([middleX, nearY], [middleX, farY], [middleX, middleY])
-        } else if (this.width % 2 !== 0) {
+        } else if (this.width % 2 !== 0 && this.width !== 7) {
             result.push([middleX, nearY], [middleX, farY])
-        } else if (this.height % 2 !== 0) {
+        } else if (this.height % 2 !== 0 && this.height !== 7) {
             result.push([nearX, middleY], [farX, middleY])
         }
 
         return result.slice(0, count)
-    }
-
-    generateAscii() {
-        let result = []
-        let lb = helper.linebreak
-
-        let getIndexFromVertex = ([x, y]) => {
-            let rowLength = 4 + this.width * 2
-            return rowLength + rowLength * y + 1 + x * 2 + 1
-        }
-
-        // Make empty board
-
-        result.push('+')
-        for (let x = 0; x < this.width; x++) result.push('-', '-')
-        result.push('-', '+', lb)
-
-        for (let y = 0; y < this.height; y++) {
-            result.push('|')
-            for (let x = 0; x < this.width; x++) result.push(' ', '.')
-            result.push(' ', '|', lb)
-        }
-
-        result.push('+')
-        for (let x = 0; x < this.width; x++) result.push('-', '-')
-        result.push('-', '+', lb)
-
-        this.getHandicapPlacement(9).forEach(v => result[getIndexFromVertex(v)] = ',')
-
-        // Place markers & stones
-
-        let data = {
-            plain: ['O', null, 'X'],
-            circle: ['W', 'C', 'B'],
-            square: ['@', 'S', '#'],
-            triangle: ['Q', 'T', 'Y'],
-            cross: ['P', 'M', 'Z'],
-            label: ['O', null, 'X']
-        }
-
-        for (let x = 0; x < this.width; x++) {
-            for (let y = 0; y < this.height; y++) {
-                let v = [x, y]
-                let i = getIndexFromVertex(v)
-                let s = this.get(v)
-
-                if (!this.markers[y][x] || !(this.markers[y][x].type in data)) {
-                    if (s !== 0) result[i] = data.plain[s + 1]
-                } else {
-                    let {type, label} = this.markers[y][x]
-
-                    if (type !== 'label' || s !== 0) {
-                        result[i] = data[type][s + 1]
-                    } else if (s === 0 && label.length === 1 && isNaN(parseFloat(label))) {
-                        result[i] = label.toLowerCase()
-                    }
-                }
-            }
-        }
-
-        result = result.join('')
-
-        // Add lines & arrows
-
-        for (let {v1, v2, type} of this.lines) {
-            result += `{${type === 'arrow' ? 'AR' : 'LN'} ${this.vertex2coord(v1)} ${this.vertex2coord(v2)}}${lb}`
-        }
-
-        return (lb + result.trim()).split(lb).map(l => `$$ ${l}`).join(lb)
     }
 
     getPositionHash() {

@@ -17,7 +17,7 @@ exports.context = dolm.context
 exports.loadStrings = function(strings) {
     if (isRenderer && window.sabaki != null) {
         mainI18n.loadStrings(strings)
-        sabaki.buildMenu(true)
+        sabaki.buildMenu()
         sabaki.waitForRender()
     }
 
@@ -66,9 +66,9 @@ try {
 }
 
 if (isRenderer) {
-    setting.events.on('change', ({key}) => {
+    setting.events.on('change', ({key, value}) => {
         if (key !== 'app.lang') return
 
-        exports.loadLang(setting.get('app.lang'))
+        exports.loadLang(value)
     })
 }

@@ -28,9 +28,9 @@ const EngineSyncer = require('../modules/enginesyncer')
 const dialog = require('../modules/dialog')
 const fileformats = require('../modules/fileformats')
 const gametree = require('../modules/gametree')
+const gobantransformer = require('../modules/gobantransformer')
 const gtplogger = require('../modules/gtplogger')
 const helper = require('../modules/helper')
-const treetransformer = require('../modules/treetransformer')
 const setting = remote.require('./setting')
 const sound = require('../modules/sound')
 const ReviewEngine = require('../modules/review')
@@ -76,6 +76,7 @@ class App extends Component {
             showSiblings: null,
             fuzzyStonePlacement: null,
             animateStonePlacement: null,
+            boardTransformation: '',
 
             // Sidebar
 
@@ -172,7 +173,7 @@ class App extends Component {
 
         // Handle main menu items
 
-        let menuData = require('../menu').clone()
+        let menuData = require('../menu').get()
 
         let handleMenuClicks = menu => {
             for (let item of menu) {
@@ -324,6 +325,17 @@ class App extends Component {
             this.window.setAutoHideMenuBar(!this.state.showMenuBar)
         }
 
+        // Handle bars & drawers
+
+        if (
+            ['estimator', 'scoring'].includes(prevState.mode)
+            && this.state.mode !== 'estimator'
+            && this.state.mode !== 'scoring'
+            && this.state.openDrawer === 'score'
+        ) {
+            this.closeDrawer()
+        }
+
         // Handle sidebar showing/hiding
 
         if (
@@ -355,7 +367,7 @@ class App extends Component {
         }
     }
 
-    updateSettingState(key = null) {
+    updateSettingState(key = null, {buildMenu = true} = {}) {
         let data = {
             'app.zoom_factor': 'zoomFactor',
             'view.show_menubar': 'showMenuBar',
@@ -373,12 +385,13 @@ class App extends Component {
         }
 
         if (key == null) {
-            for (let k in data) this.updateSettingState(k)
+            for (let k in data) this.updateSettingState(k, {buildMenu: false})
+            this.buildMenu()
             return
         }
 
         if (key in data) {
-            this.buildMenu()
+            if (buildMenu) this.buildMenu()
             this.setState({[data[key]]: setting.get(key)})
         }
     }
@@ -389,9 +402,10 @@ class App extends Component {
 
     // User Interface
 
-    buildMenu(rebuild = false) {
-        if (rebuild) remote.require('./menu').buildMenu()
-        ipcRenderer.send('build-menu', this.state.busy > 0)
+    buildMenu() {
+        ipcRenderer.send('build-menu', {
+            disableAll: this.state.busy > 0
+        })
     }
 
     setSidebarWidth(sidebarWidth) {
@@ -683,7 +697,8 @@ class App extends Component {
                 representedFilename: null,
                 gameIndex: 0,
                 gameTrees,
-                gameCurrents: gameTrees.map(_ => ({}))
+                gameCurrents: gameTrees.map(_ => ({})),
+                boardTransformation: ''
             })
 
             let [firstTree, ] = gameTrees
@@ -747,7 +762,90 @@ class App extends Component {
         this.setState({gameTrees})
         this.recordHistory()
 
-        return sgf.stringify(gameTrees.map(tree => tree.root))
+        return sgf.stringify(gameTrees.map(tree => tree.root), {
+            linebreak: setting.get('sgf.format_code') ? helper.linebreak : ''
+        })
+    }
+
+    getBoardAscii() {
+        let {boardTransformation} = this.state
+        let tree = this.state.gameTrees[this.state.gameIndex]
+        let board = gametree.getBoard(tree, this.state.treePosition)
+        let signMap = gobantransformer.transformMap(board.arrangement, boardTransformation)
+        let markerMap = gobantransformer.transformMap(board.markers, boardTransformation)
+        let lines = board.lines.map(l =>
+            gobantransformer.transformLine(l, boardTransformation, board.width, board.height)
+        )
+
+        let height = signMap.length
+        let width = height === 0 ? 0 : signMap[0].length
+        let result = []
+        let lb = helper.linebreak
+
+        let getIndexFromVertex = ([x, y]) => {
+            let rowLength = 4 + width * 2
+            return rowLength + rowLength * y + 1 + x * 2 + 1
+        }
+
+        // Make empty board
+
+        result.push('+')
+        for (let x = 0; x < width; x++) result.push('-', '-')
+        result.push('-', '+', lb)
+
+        for (let y = 0; y < height; y++) {
+            result.push('|')
+            for (let x = 0; x < width; x++) result.push(' ', '.')
+            result.push(' ', '|', lb)
+        }
+
+        result.push('+')
+        for (let x = 0; x < width; x++) result.push('-', '-')
+        result.push('-', '+', lb)
+
+        for (let vertex of new Board(width, height).getHandicapPlacement(9)){
+            result[getIndexFromVertex(vertex)] = ','
+        }
+
+        // Place markers & stones
+
+        let data = {
+            plain: ['O', null, 'X'],
+            circle: ['W', 'C', 'B'],
+            square: ['@', 'S', '#'],
+            triangle: ['Q', 'T', 'Y'],
+            cross: ['P', 'M', 'Z'],
+            label: ['O', null, 'X']
+        }
+
+        for (let x = 0; x < width; x++) {
+            for (let y = 0; y < height; y++) {
+                let i = getIndexFromVertex([x, y])
+                let s = signMap[y][x]
+
+                if (!markerMap[y][x] || !(markerMap[y][x].type in data)) {
+                    if (s !== 0) result[i] = data.plain[s + 1]
+                } else {
+                    let {type, label} = markerMap[y][x]
+
+                    if (type !== 'label' || s !== 0) {
+                        result[i] = data[type][s + 1]
+                    } else if (s === 0 && label.length === 1 && isNaN(parseFloat(label))) {
+                        result[i] = label.toLowerCase()
+                    }
+                }
+            }
+        }
+
+        result = result.join('')
+
+        // Add lines & arrows
+
+        for (let {v1, v2, type} of lines) {
+            result += `{${type === 'arrow' ? 'AR' : 'LN'} ${this.vertex2coord(v1)} ${this.vertex2coord(v2)}}${lb}`
+        }
+
+        return (lb + result.trim()).split(lb).map(l => `$$ ${l}`).join(lb)
     }
 
     generateTreeHash() {
@@ -1473,6 +1571,7 @@ class App extends Component {
         let {gameTrees, gameIndex} = this.state
         let newIndex = Math.max(0, Math.min(gameTrees.length - 1, gameIndex + step))
 
+        this.closeDrawer()
         this.setCurrentTreePosition(gameTrees[newIndex], gameTrees[newIndex].root.id)
     }
 
@@ -1587,6 +1686,7 @@ class App extends Component {
             whiteRank: playerRanks[1],
             gameName: gametree.getRootProperty(tree, 'GN'),
             eventName: gametree.getRootProperty(tree, 'EV'),
+            gameComment: gametree.getRootProperty(tree, 'GC'),
             date: gametree.getRootProperty(tree, 'DT'),
             result: gametree.getRootProperty(tree, 'RE'),
             komi,
@@ -1613,7 +1713,9 @@ class App extends Component {
                     draft.removeProperty(draft.root.id, 'SZ')
                 }
             }
+        })
 
+        newTree = newTree.mutate(draft => {
             let props = {
                 blackName: 'PB',
                 blackRank: 'BR',
@@ -1621,6 +1723,7 @@ class App extends Component {
                 whiteRank: 'WR',
                 gameName: 'GN',
                 eventName: 'EV',
+                gameComment: 'GC',
                 date: 'DT',
                 result: 'RE',
                 komi: 'KM',
@@ -1628,16 +1731,16 @@ class App extends Component {
             }
 
             for (let key in props) {
-                if (data[key] == null) continue
+                if (!(key in data)) continue
                 let value = data[key]
 
-                if (value && value.toString().trim() !== '') {
+                if (value && value.toString() !== '') {
                     if (key === 'komi') {
                         if (isNaN(value)) value = 0
 
                         setting.set('game.default_komi', value)
                     } else if (key === 'handicap') {
-                        let board = gametree.getBoard(tree, tree.root.id)
+                        let board = gametree.getBoard(newTree, newTree.root.id)
                         let stones = board.getHandicapPlacement(+value)
 
                         value = stones.length
@@ -1710,7 +1813,7 @@ class App extends Component {
         let newTree = tree.mutate(draft => {
             for (let [key, prop] of [['title', 'N'], ['comment', 'C']]) {
                 if (key in data) {
-                    if (data[key] && data[key].trim() !== '') {
+                    if (data[key] && data[key] !== '') {
                         draft.updateProperty(treePosition, prop, [data[key]])
                     } else {
                         draft.removeProperty(treePosition, prop)
@@ -1754,30 +1857,16 @@ class App extends Component {
         this.setCurrentTreePosition(newTree, treePosition)
     }
 
-    rotateBoard(anticlockwise) {
-        let {treePosition, gameTrees, gameIndex} = this.state
-        let tree = gameTrees[gameIndex]
-        let {size} = this.getGameInfo(tree)
-        let newTree = treetransformer.rotateTree(tree, size[0], size[1], anticlockwise)
-
-        this.setCurrentTreePosition(newTree, treePosition, {clearCache: true})
+    setBoardTransformation(transformation) {
+        this.setState({
+            boardTransformation: gobantransformer.normalize(transformation)
+        })
     }
 
-    flipBoard(horizontal) {
-        let {treePosition, gameTrees, gameIndex} = this.state
-        let tree = gameTrees[gameIndex]
-        let {size} = this.getGameInfo(tree)
-        let newTree = treetransformer.flipTree(tree, size[0], size[1], horizontal)
-
-        this.setCurrentTreePosition(newTree, treePosition, {clearCache: true})
-    }
-
-    invertColors() {
-        let {treePosition, gameTrees, gameIndex} = this.state
-        let tree = gameTrees[gameIndex]
-        let newTree = treetransformer.invertTreeColors(tree)
-
-        this.setCurrentTreePosition(newTree, treePosition, {clearCache: true})
+    pushBoardTransformation(transformation) {
+        this.setState(({boardTransformation}) => ({
+            boardTransformation: gobantransformer.normalize(boardTransformation + transformation)
+        }))
     }
 
     copyVariation(tree, treePosition) {
@@ -1840,6 +1929,7 @@ class App extends Component {
         if (gameIndex < 0) return
 
         let board = gametree.getBoard(tree, treePosition)
+        let playerSign = this.getPlayer(tree, treePosition)
         let inherit = setting.get('edit.flatten_inherit_root_props')
 
         let newTree = tree.mutate(draft => {
@@ -1865,6 +1955,7 @@ class App extends Component {
 
         this.setState({gameTrees: gameTrees.map((t, i) => i === gameIndex ? newTree : t)})
         this.setCurrentTreePosition(newTree, newTree.root.id)
+        this.setPlayer(newTree, treePosition, playerSign)
     }
 
     makeMainVariation(tree, treePosition) {
@@ -2425,10 +2516,11 @@ class App extends Component {
         })
     }
 
-    async syncEngines({passPlayer = null} = {}) {
+    async syncEngines({showErrorDialog = false} = {}) {
         if (this.attachedEngineSyncers.every(x => x == null)) return
-
         if (this.engineBusySyncing) return
+
+        let t = i18n.context('app.engine')
         this.engineBusySyncing = true
 
         try {
@@ -2443,20 +2535,14 @@ class App extends Component {
 
                 if (treePosition === this.state.treePosition) break
             }
-
-            // Send pass if required
-
-            if (passPlayer != null) {
-                let color = passPlayer > 0 ? 'B' : 'W'
-                let {controller} = this.attachedEngineSyncers[passPlayer > 0 ? 0 : 1] || {}
-
-                if (controller != null) {
-                    await controller.sendCommand({name: 'play', args: [color, 'pass']})
-                }
-            }
         } catch (err) {
             this.engineBusySyncing = false
-            throw err
+
+            if (showErrorDialog) {
+                dialog.showMessageBox(t(err.message), 'warning')
+            } else {
+                throw err
+            }
         }
 
         this.engineBusySyncing = false
@@ -2531,7 +2617,7 @@ class App extends Component {
     
     
 
-    async generateMove({passPlayer = null, firstMove = true, followUp = false} = {}) {
+    async generateMove({firstMove = true, followUp = false} = {}) {
         this.closeDrawer()
 
         if (!firstMove && !this.state.generatingMoves) {
@@ -2565,7 +2651,7 @@ class App extends Component {
         this.setBusy(true)
 
         try {
-            await this.syncEngines({passPlayer})
+            await this.syncEngines({showErrorDialog: true})
         } catch (err) {
             this.stopGeneratingMoves()
             this.hideInfoOverlay()

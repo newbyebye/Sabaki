@@ -4,16 +4,47 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased][unreleased]
 
+**Changed**
+
+* Board transformations (rotation/flip/inversion) are now temporary and faster, transforms coordinates as well, located in the 'View' main menu, and have dedicated keyboard shortcuts
+
+**Fixed**
+
+* Fix 'Update Result' not working in the score drawer
+
+## [Sabaki v0.43.3][v0.43.3] (2019-05-13)
+
+**Added**
+
+* Node flattening operation now preserves player's turn (Thanks to [@dfannius](https://github.com/dfannius))
+* Add ability to see and edit game comment (`GC` SGF property) in the info drawer (Thanks to [@fohristiwhirl](https://github.com/fohristiwhirl))
+
+**Fixed**
+
+* Files with really long variations don't freeze the app anymore
+* Fix adding SGF properties via the 'Edit SGF Properties' drawer not working
+* Fix handicap stones in wrong positions when changing board size
+* Fix encoding detection not working
+
+## [Sabaki v0.43.2][v0.43.2] (2019-04-27)
+
 **Added**
 
 * Ability to flip board horizontally/vertically (Thanks to [@fohristiwhirl](https://github.com/fohristiwhirl))
 * Ability to invert colors (Thanks to [@fohristiwhirl](https://github.com/fohristiwhirl))
+* Ability to invert winrate graph (Thanks to [@fohristiwhirl](https://github.com/fohristiwhirl))
+
+**Changed**
+
+* Create compressed SGF with no unnecessary whitespace by default
 
 **Fixed**
 
 * Don't clear edit history on reloading file when file has been changed externally
+* Fix clearing certain game info fields not working
 * Fix engines making three consecutive passes in engine vs. engine games
 * Fix engine vs. engine games getting stuck in analysis mode
+* Fix engine synchronization problems with passing moves
 
 ## [Sabaki v0.43.1][v0.43.1] (2019-03-17)
 
@@ -824,7 +855,9 @@ All notable changes to this project will be documented in this file.
 
 First release
 
-[unreleased]: https://github.com/SabakiHQ/Sabaki/compare/v0.43.1...master
+[unreleased]: https://github.com/SabakiHQ/Sabaki/compare/v0.43.3...master
+[v0.43.3]: https://github.com/SabakiHQ/Sabaki/compare/v0.43.2...v0.43.3
+[v0.43.2]: https://github.com/SabakiHQ/Sabaki/compare/v0.43.1...v0.43.2
 [v0.43.1]: https://github.com/SabakiHQ/Sabaki/compare/v0.43.0...v0.43.1
 [v0.43.0]: https://github.com/SabakiHQ/Sabaki/compare/v0.42.0...v0.43.0
 [v0.42.0]: https://github.com/SabakiHQ/Sabaki/compare/v0.41.0...v0.42.0

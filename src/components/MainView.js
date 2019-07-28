@@ -10,6 +10,7 @@ const FindBar = require('./bars/FindBar')
 const WinrateGraph = require('./WinrateGraph')
 const classNames = require('classnames')
 
+const gobantransformer = require('../modules/gobantransformer')
 const gametree = require('../modules/gametree')
 const ReviewEngine = require('../modules/review')
 
@@ -119,6 +120,7 @@ class MainView extends Component {
         showSiblings,
         fuzzyStonePlacement,
         animateStonePlacement,
+        boardTransformation,
 
         selectedTool,
         findText,
@@ -197,6 +199,7 @@ class MainView extends Component {
                     playVariation,
                     drawLineMode: mode === 'edit' && ['arrow', 'line'].includes(selectedTool)
                         ? selectedTool : null,
+                    transformation: boardTransformation,
 
                     onVertexClick: this.handleGobanVertexClick,
                     onLineDraw: this.handleGobanLineDraw
